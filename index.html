@@ -240,11 +240,38 @@
         .notification { position: fixed; top: 30px; right: 30px; background: linear-gradient(135deg, #00E5FF, #00B8D4); color: #000; padding: 18px 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,229,255,0.4); display: none; z-index: 10000; animation: slideIn 0.5s ease; font-weight: 700; font-size: 15px; transition: background 0.4s; }
         @keyframes slideIn { from{transform:translateX(400px);opacity:0} to{transform:translateX(0);opacity:1} }
 
+        /* Overlay blokir domain */
+        #_domainBlock {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.97);
+            z-index: 999999;
+            align-items: center; justify-content: center; flex-direction: column;
+            color: #ff4444;
+            font-family: 'Orbitron', sans-serif;
+            text-align: center;
+            padding: 40px;
+            cursor: not-allowed;
+            user-select: none;
+        }
+
         @media(max-width:1200px){ .main-layout{grid-template-columns:1fr;} .preview-sticky{position:relative;top:0;} .color-grid{grid-template-columns:1fr;} .site-cards{grid-template-columns:1fr;} }
         @media(max-width:768px){ .header img.logo{max-width:180px;} .header h1{font-size:28px;letter-spacing:1px;} .stats-bar{flex-direction:column;gap:10px;} button{font-size:12px;padding:12px 20px;} .site-card{padding:15px;gap:10px;} .site-card-thumb{width:50px;} .site-card-name{font-size:14px;} }
     </style>
 </head>
 <body>
+
+<!-- Overlay blokir domain (hidden by default, shown via JS only jika domain salah) -->
+<div id="_domainBlock">
+    <div style="font-size:72px;margin-bottom:30px;">⛔</div>
+    <div style="font-size:32px;font-weight:900;margin-bottom:16px;letter-spacing:5px;">AKSES DITOLAK</div>
+    <div style="font-size:14px;color:#888;letter-spacing:1px;line-height:2;max-width:450px;">
+        Panel ini tidak dapat digunakan di domain ini.<br/>
+        Hubungi pemilik resmi untuk mendapatkan akses.<br/>
+        <span id="_domainBlockHost" style="color:#555;font-size:11px;"></span>
+    </div>
+</div>
+
 <div class="container">
 
     <div class="header">
@@ -408,92 +435,107 @@ INTERNATIONAL FRIENDLY U20
 
 <script>
 /* =============================================================
-   KONFIGURASI DOMAIN — GANTI DENGAN DOMAIN ANDA SENDIRI
+   DOMAIN PROTEKSI — SINGLE CLEAN SYSTEM
    ============================================================= */
+
+// ===== KONFIGURASI DOMAIN ANDA =====
+// Tambahkan semua domain yang boleh mengakses panel ini
+// Subdomain otomatis diizinkan (misal: panel.togelon.com jika togelon.com ada)
 var DOMAIN_ALLOWLIST = [
     'localhost',
     '127.0.0.1',
     // ===== TAMBAHKAN DOMAIN ANDA DI BAWAH INI =====
-    // 'panel.togelon.com',
-    // 'www.togelon.com',
-    // 'danatoto.com',
+     'togelon.com',
+     'www.togelon.com',
+     'panel.togelon.com',
+     'danatoto.com',
+     'www.danatoto.com',
 ];
 
-var ALLOW_LOCAL_FILE = true; // true = file:// bisa dipakai lokal, false = hanya domain
+// true = file:// (buka langsung dari komputer) diizinkan
+// false = hanya domain di atas yang diizinkan
+var ALLOW_LOCAL_FILE = true;
 
-/* =============================================================
-   PROTEKSI DOMAIN MULTI-LAYER
-   ============================================================= */
-var _0xG = (function(){
-    var _h = '';
-    try { _h = window.location.hostname.toLowerCase(); } catch(e){ _h = ''; }
-    var _p = '';
-    try { _p = window.location.protocol; } catch(e){ _p = ''; }
-    var _o = false;
+// ===== JANGAN UBAH DI BAWAH INI =====
+var __domainOk = (function() {
+    var hostname = '';
+    try { hostname = window.location.hostname.toLowerCase(); } catch(e) { hostname = ''; }
+    var protocol = '';
+    try { protocol = window.location.protocol; } catch(e) { protocol = ''; }
 
-    for(var i = 0; i < DOMAIN_ALLOWLIST.length; i++){
-        var d = DOMAIN_ALLOWLIST[i].toLowerCase();
-        if(_h === d || (d && _h.endsWith('.' + d))){ _o = true; break; }
-    }
-    if(ALLOW_LOCAL_FILE && _p === 'file:') _o = true;
+    var allowed = false;
 
-    function _blk(){
-        var ov = document.getElementById('_0xBlk');
-        if(!ov){
-            ov = document.createElement('div');
-            ov.id = '_0xBlk';
-            ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.97);z-index:999999;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#ff4444;font-family:Orbitron,sans-serif;text-align:center;padding:40px;cursor:not-allowed;user-select:none;';
-            ov.innerHTML = '<div style="font-size:64px;margin-bottom:24px;">\u26D4</div><div style="font-size:28px;font-weight:900;margin-bottom:12px;letter-spacing:4px;">AKSES DITOLAK</div><div style="font-size:13px;color:#999;letter-spacing:1px;line-height:1.8;max-width:400px;">Panel ini tidak dapat digunakan di domain ini.<br/>Hubungi pemilik resmi untuk mendapatkan akses.<br/><span style="color:#555;font-size:11px;margin-top:8px;display:inline-block;">[' + _h + ']</span></div>';
-            document.body.appendChild(ov);
+    // Cek setiap domain di allowlist
+    for (var i = 0; i < DOMAIN_ALLOWLIST.length; i++) {
+        var d = DOMAIN_ALLOWLIST[i].toLowerCase().trim();
+        if (!d) continue;
+        // Match persis ATAU subdomain (misal: panel.togelon.com cocok dengan togelon.com)
+        if (hostname === d || (d && hostname.endsWith('.' + d))) {
+            allowed = true;
+            break;
         }
     }
 
-    function _corrupt(){
-        try{
-            if(typeof SITES !== 'undefined' && SITES){
-                Object.keys(SITES).forEach(function(k){
-                    if(SITES[k]){ SITES[k].logo=''; SITES[k].favicon=''; SITES[k].background=''; SITES[k].marquee=''; }
-                });
+    // Izinkan file:// lokal
+    if (ALLOW_LOCAL_FILE && (protocol === 'file:' || hostname === '' || hostname === '0.0.0.0')) {
+        allowed = true;
+    }
+
+    // Jika TIDAK diizinkan → tampilkan overlay & korupsi data
+    if (!allowed) {
+        function showBlock() {
+            var ov = document.getElementById('_domainBlock');
+            if (ov) {
+                ov.style.display = 'flex';
+                var hostEl = document.getElementById('_domainBlockHost');
+                if (hostEl) hostEl.textContent = '[' + hostname + ']';
             }
-        }catch(e){}
-        try{ if(typeof customSheetLogoDb !== 'undefined') customSheetLogoDb = {}; }catch(e){}
-        try{ if(typeof teamLogoCache !== 'undefined') teamLogoCache = {}; }catch(e){}
-    }
-
-    if(!_o){
-        if(document.readyState === 'loading'){
-            document.addEventListener('DOMContentLoaded', function(){ _blk(); });
-        } else {
-            _blk();
         }
-        _corrupt();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showBlock);
+        } else {
+            showBlock();
+        }
     }
 
-    return {
-        v: _o,
-        k: function(){ return _o; },
-        b: function(){ if(!_o) _blk(); },
-        c: function(){ if(!_o){ _corrupt(); _blk(); } },
-        h: function(){ return _h; }
-    };
+    return allowed;
 })();
 
-// Verifikasi berkala — korupsi data jika domain tidak sah
-setInterval(function(){ if(!_0xG.v) _0xG.c(); }, 2000);
+// Guard function — dipanggil di setiap fungsi kritis
+function _dk() {
+    if (!__domainOk) {
+        // Korupsi data
+        try { if (typeof SITES !== 'undefined' && SITES) Object.keys(SITES).forEach(function(k){ if(SITES[k]){ SITES[k].logo=''; SITES[k].background=''; SITES[k].marquee=''; } }); } catch(e){}
+        try { if (typeof customSheetLogoDb !== 'undefined') customSheetLogoDb = {}; } catch(e){}
+        try { if (typeof teamLogoCache !== 'undefined') teamLogoCache = {}; } catch(e){}
+        return false;
+    }
+    return true;
+}
 
-// Integrity check — jika proteksi dihapus, halaman blank
-setInterval(function(){
-    if(typeof _0xG === 'undefined' || typeof _0xG.v === 'undefined' || typeof _0xG.k === 'undefined'){
-        try{ document.body.innerHTML = '<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;display:flex;align-items:center;justify-content:center;color:#f44;font-size:18px;font-family:sans-serif;text-align:center;padding:40px;">\u26D4 Konfigurasi tidak valid</div>'; }catch(e){}
+// Periodic re-check
+setInterval(function() {
+    if (!__domainOk) {
+        _dk();
+        var ov = document.getElementById('_domainBlock');
+        if (ov) ov.style.display = 'flex';
     }
 }, 3000);
 
-// Deteksi iframe
+// Integrity check — jika __domainOk atau DOMAIN_ALLOWLIST dihapus, blank halaman
+setInterval(function() {
+    if (typeof __domainOk === 'undefined' || typeof DOMAIN_ALLOWLIST === 'undefined' || typeof _dk === 'undefined') {
+        try { document.documentElement.innerHTML = '<body style="background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#f44;font-family:sans-serif;text-align:center;padding:40px;">⛔ Konfigurasi tidak valid</body>'; } catch(e){}
+    }
+}, 4000);
+
+// Anti-iframe di domain lain
 try {
-    if(window.top !== window.self && !_0xG.v){
+    if (window.top !== window.self && !__domainOk) {
         window.top.location = 'about:blank';
     }
-} catch(e){}
+} catch(e) {}
+
 
 /* ==========================================================
    KONFIGURASI MULTI-SITE
@@ -535,7 +577,7 @@ var currentSiteKey = 'togelon';
 function getSite() { return SITES[currentSiteKey]; }
 
 function switchSite(key) {
-    _0xG.c(); if(!_0xG.v) return;
+    if(!_dk()) return;
     if (!SITES[key] || key === currentSiteKey) return;
     currentSiteKey = key;
     var site = getSite();
@@ -563,9 +605,6 @@ function switchSite(key) {
         card.classList.toggle('active', card.getAttribute('data-site') === key);
     });
 
-    var noti = document.getElementById('notification');
-    noti.style.background = 'linear-gradient(135deg, ' + site.defaultColors.mq + ', ' + site.defaultColors.bg + ')';
-
     reRenderIfHasData();
     showNotification('\u2713 Panel diubah ke ' + site.name);
 }
@@ -584,7 +623,7 @@ var sheetLoaded = false;
 var sheetLoadPromise = null;
 
 function loadCustomSheet(gid) {
-    if(!_0xG.k()) return Promise.resolve(0);
+    if(!__domainOk) return Promise.resolve(0);
     return new Promise(function(resolve) {
         var cbName = 'gviz_custom_gid_' + gid;
         var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_CONFIG.USER_SHEET_ID +
@@ -629,7 +668,7 @@ function loadCustomSheet(gid) {
 }
 
 async function loadSheet() {
-    _0xG.c(); if(!_0xG.v) return;
+    if(!__domainOk) return;
     if (sheetLoaded) return;
     var ok = false;
     try {
@@ -687,7 +726,7 @@ function cleanTeamNameForLogo(name) {
 }
 
 function lookupCustomSheet(teamName) {
-    if(!_0xG.k()) return null;
+    if(!__domainOk) return null;
     var key = teamName.toLowerCase().trim();
     if (customSheetLogoDb[key]) return customSheetLogoDb[key];
     var cleanName = cleanTeamNameForLogo(teamName).toLowerCase().trim();
@@ -700,7 +739,7 @@ function lookupCustomSheet(teamName) {
 }
 
 async function fetchTeamLogo(teamName) {
-    if(!_0xG.k()) return { url: null, source: LOGO_SOURCE_NONE };
+    if(!__domainOk) return { url: null, source: LOGO_SOURCE_NONE };
     var key = teamName.toLowerCase().trim();
     if (key in teamLogoCache) return teamLogoCache[key];
     if (!sheetLoaded) { try { await sheetLoadPromise; } catch (e) {} }
@@ -711,7 +750,7 @@ async function fetchTeamLogo(teamName) {
 }
 
 function getTeamLogoUrl(name) {
-    if(!_0xG.v) return null;
+    if(!__domainOk) return null;
     var c = teamLogoCache[name.toLowerCase().trim()];
     return (c && c.url) ? c.url : null;
 }
@@ -794,7 +833,7 @@ function filterLeague(name) {
    Render Preview
    ========================================================== */
 function renderPreview(leagues) {
-    _0xG.b(); if(!_0xG.k()) return;
+    if(!_dk()) return;
     var tablesDiv = document.getElementById('previewTables');
     var emptyDiv = document.getElementById('previewEmpty');
     if (!leagues.length) { tablesDiv.innerHTML = ''; emptyDiv.style.display = 'block'; document.getElementById('leagueFilterWrap').style.display = 'none'; return; }
@@ -827,12 +866,12 @@ function renderPreview(leagues) {
 }
 
 /* ==========================================================
-   Build Output HTML — DENGAN PROTEKSI DOMAIN DI OUTPUT
+   Build Output HTML — DENGAN PROTEKSI DOMAIN
    ========================================================== */
 function buildOutputHTML(leagues) {
-    if(!_0xG.v) return '<!-- Konfigurasi tidak valid -->';
+    if(!__domainOk) return '<!-- Akses tidak valid -->';
     var site = getSite();
-    if(!site) return '<!-- Konfigurasi tidak valid -->';
+    if(!site) return '<!-- Akses tidak valid -->';
     var autoDate = document.getElementById('autoDate').textContent;
     var c = getColors();
     var lighter = adjustColor(c.bg, 30);
@@ -869,7 +908,6 @@ function buildOutputHTML(leagues) {
         blocks += '  </div>\n</div>\n\n';
     });
 
-    // Domain allowlist string untuk output HTML
     var domainStr = DOMAIN_ALLOWLIST.map(function(d){ return "'" + d + "'"; }).join(',');
 
     return '<!-- KODE GENERATED BY ' + site.name + ' - Crown Top Edition -->\n' +
@@ -942,14 +980,13 @@ leagues.map(function(l) { return '      <option value="' + l.name.replace(/"/g, 
 '</div>\n\n' +
 blocks +
 '<script>\n' +
-// Proteksi domain di dalam output HTML juga
 'var _0xD=[' + domainStr + '];\n' +
-'var _0xH=window.location.hostname.toLowerCase();\n' +
-'var _0xP=window.location.protocol;\n' +
+'var _0xH="";try{_0xH=window.location.hostname.toLowerCase();}catch(e){}\n' +
+'var _0xP="";try{_0xP=window.location.protocol;}catch(e){}\n' +
 'var _0xOk=false;\n' +
-'for(var _0xi=0;_0xi<_0xD.length;_0xi++){if(_0xH===_0xD[_0xi]||_0xH.endsWith("."+_0xD[_0xi])){_0xOk=true;break;}}\n' +
-'if(_0xP==="file:")_0xOk=true;\n' +
-'if(!_0xOk){document.body.style.display="none";document.body.innerHTML="<div style=\\'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;display:flex;align-items:center;justify-content:center;color:#f44;font-size:18px;font-family:sans-serif;text-align:center;padding:40px;\\'>\\u26D4 Konten tidak tersedia di domain ini</div>";}\n' +
+'for(var _0xi=0;_0xi<_0xD.length;_0xi++){var _d=_0xD[_0xi].toLowerCase();if(_0xH===_d||_0xH.endsWith("."+_d)){_0xOk=true;break;}}\n' +
+'if(_0xP==="file:"||_0xH===""||_0xH==="0.0.0.0"||_0xH==="127.0.0.1"||_0xH==="localhost")_0xOk=true;\n' +
+'if(!_0xOk){document.body.innerHTML="<div style=\\'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;display:flex;align-items:center;justify-content:center;color:#f44;font-size:18px;font-family:sans-serif;text-align:center;padding:40px;\\'>\\u26D4 Konten tidak tersedia di domain ini</div>";}\n' +
 'function filterLeague(val) {\n' +
 '  document.querySelectorAll(\'.league-block\').forEach(function(b) {\n' +
 '    b.style.display = (val === \'all\' || b.dataset.league === val) ? \'\' : \'none\';\n' +
@@ -979,7 +1016,7 @@ document.getElementById('inputText').addEventListener('input', function() {
 });
 
 async function handleInput() {
-    _0xG.c(); if(!_0xG.v) return;
+    if(!_dk()) return;
     var input = document.getElementById('inputText').value.trim();
     if (!input) {
         document.getElementById('outputCode').textContent = 'Script HTML lengkap akan muncul di sini secara otomatis...';
@@ -1028,7 +1065,7 @@ function initColorPickers() {
 }
 
 function reRenderIfHasData() {
-    if(!_0xG.k()) return;
+    if(!__domainOk) return;
     var input = document.getElementById('inputText').value.trim();
     if (!input) return;
     var leagues = parseAll(input);
@@ -1070,7 +1107,7 @@ function setColorValues(bg, txt, hd, mq) {
 }
 
 function resetColors() {
-    _0xG.b(); if(!_0xG.k()) return;
+    if(!_dk()) return;
     var d = getSite().defaultColors;
     setColorValues(d.bg, d.txt, d.hd, d.mq);
     var vars = getSite().cssVars;
@@ -1090,7 +1127,7 @@ function generateAutoDate() {
 }
 
 function copyToClipboard() {
-    _0xG.c(); if(!_0xG.v) return;
+    if(!__domainOk) return;
     var output = document.getElementById('outputCode').textContent;
     if (output.startsWith('Script HTML')) { showNotification('\u26A0\uFE0F Belum ada script yang di-generate!'); return; }
     navigator.clipboard.writeText(output).then(function() {
@@ -1102,7 +1139,7 @@ function copyToClipboard() {
 }
 
 function clearInput() {
-    if(!_0xG.k()) return;
+    if(!__domainOk) return;
     document.getElementById('inputText').value = '';
     document.getElementById('outputCode').textContent = 'Script HTML lengkap akan muncul di sini secara otomatis...';
     document.getElementById('previewTables').innerHTML = '';
@@ -1146,56 +1183,6 @@ document.addEventListener('selectstart',function(e){
     if(tag==='INPUT'||tag==='TEXTAREA') return true;
     e.preventDefault();return false;
 });
-</script>
-<script>
-(function(){
-    var _0xDt = [
-        'bG9jYWxob3N0',
-        'MTI3LjAuMC4x'
-    ];
-    var _0xHt = '';
-    try{ _0xHt = window.location.hostname.toLowerCase(); }catch(e){}
-    var _0xPt = '';
-    try{ _0xPt = window.location.protocol; }catch(e){}
-    var _0xVt = false;
-    for(var _0xIt=0;_0xIt<DOMAIN_ALLOWLIST.length;_0xIt++){
-        var _d=DOMAIN_ALLOWLIST[_0xIt].toLowerCase();
-        if(_0xHt===_d||(_d&&_0xHt.endsWith('.'+_d))){_0xVt=true;break;}
-    }
-    for(var _0xIt2=0;_0xIt2<_0xDt.length;_0xIt2++){
-        try{var _d2=atob(_0xDt[_0xIt2]).toLowerCase();if(_0xHt===_d2||_0xHt.endsWith('.'+_d2)){_0xVt=true;break;}}catch(e){}
-    }
-    if(ALLOW_LOCAL_FILE&&_0xPt==='file:')_0xVt=true;
-    if(!_0xVt){
-        try{
-            var _0xEt=document.createElement('div');
-            _0xEt.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.98);z-index:9999999;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#ff4444;font-family:Orbitron,sans-serif;text-align:center;padding:40px;cursor:not-allowed;user-select:none;';
-            _0xEt.innerHTML='<div style="font-size:72px;margin-bottom:30px;">\u26D4</div><div style="font-size:32px;font-weight:900;margin-bottom:16px;letter-spacing:5px;">AKSES DITOLAK</div><div style="font-size:14px;color:#888;letter-spacing:1px;line-height:2;max-width:450px;">Panel ini tidak dapat digunakan di domain ini.<br/>Hubungi pemilik resmi untuk mendapatkan akses.<br/><span style="color:#555;font-size:11px;">['+_0xHt+']</span></div>';
-            document.body.appendChild(_0xEt);
-        }catch(e){}
-    }
-
-    setInterval(function(){
-        if(typeof _0xG==='undefined'||typeof _0xG.v==='undefined'){
-            try{document.documentElement.innerHTML='';}catch(e){}
-        }
-        if(typeof DOMAIN_ALLOWLIST==='undefined'){
-            try{document.documentElement.innerHTML='';}catch(e){}
-        }
-    },4000);
-
-    setInterval(function(){
-        try{
-            if(window._0xG&&!window._0xG.k()){
-                if(typeof SITES!=='undefined'&&SITES){
-                    Object.keys(SITES).forEach(function(k){if(SITES[k]){SITES[k].logo='';SITES[k].background='';SITES[k].marquee='';}});
-                }
-                if(typeof customSheetLogoDb!=='undefined')customSheetLogoDb={};
-                if(typeof teamLogoCache!=='undefined')teamLogoCache={};
-            }
-        }catch(e){}
-    },3000);
-})();
 </script>
 </body>
 </html>
